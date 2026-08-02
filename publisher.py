@@ -31,6 +31,12 @@ MQTT_topic  = os.environ.get("MQTT_TOPIC", "kmathew994/fuelcheck/nsw/prices")
 
 # Append-only log of every cleaned snapshot, used later for price prediction
 HISTORY_FILE = "fuelPrice_history.csv"
+
+# Optional cap on records published/logged per cycle. Unset by default (full
+# ~10k-record NSW catalog) for continuous local runs; the scheduled GitHub
+# Actions job sets this so a run finishes in well under its interval, since
+# publishing is deliberately throttled to 0.1s/record.
+MAX_PUBLISH_RECORDS = os.environ.get("MAX_PUBLISH_RECORDS")
 # Placeholder for access token once obtained 
 ACCESS_TOKEN = ""
 
@@ -205,33 +211,47 @@ def publish_to_mqtt(df):
     print("All records published to MQTT")
 
 
-def run_service():
+# Runs a single fetch -> clean -> log -> publish cycle. Used both by the
+# continuous local loop and by the scheduled GitHub Actions run (which needs
+# a job that actually terminates rather than looping forever).
+def run_cycle():
     global ACCESS_TOKEN
 
+    ACCESS_TOKEN = SecurityToken()
+    if not ACCESS_TOKEN:
+        print("Could not obtain an access token.")
+        return False
+
+    print(f"[{datetime.now()}] Fetching prices...")
+
+    stations, prices = retrieve_data()
+    print("Retrieved " + str(len(stations)) + " station records.")
+    print("Retrieved " + str(len(prices)) + " price records.")
+
+    # Merge station and price data, save to CSV
+    df = transform_save (stations, prices)
+    print("Retrieved data with " + str(df.shape) + " rows and columns.")
+
+    df = clean_dataset(df)
+
+    if MAX_PUBLISH_RECORDS:
+        limit = int(MAX_PUBLISH_RECORDS)
+        if len(df) > limit:
+            df = df.sample(n=limit)
+
+    # Log this snapshot for the price prediction feature, then publish to MQTT broker
+    append_history(df)
+    publish_to_mqtt(df)
+    return True
+
+
+def run_service():
     while True:
         try:
-            # Refresh the token every cycle so long-running runs don't die on expiry
-            ACCESS_TOKEN = SecurityToken()
-            if not ACCESS_TOKEN:
-                print("Could not obtain an access token, retrying in 60s...")
+            ok = run_cycle()
+            if not ok:
                 time.sleep(60)
                 continue
-
-            print(f"[{datetime.now()}] Fetching prices...")
-
-            stations, prices = retrieve_data()
-            print("Retrieved " + str(len(stations)) + " station records.")
-            print("Retrieved " + str(len(prices)) + " price records.")
-
-            # Merge station and price data, save to CSV
-            df = transform_save (stations, prices)
-            print("Retrieved data with " + str(df.shape) + " rows and columns.")
-
-            df = clean_dataset(df)
-
-            # Log this snapshot for the price prediction feature, then publish to MQTT broker
-            append_history(df)
-            publish_to_mqtt(df)
         except Exception as e:
             print("Error during this cycle, will retry next cycle:", e)
 
@@ -243,4 +263,10 @@ if __name__ == "__main__":
             "Missing NSW FuelCheck credentials. Copy .env.example to .env and fill in "
             "FUELCHECK_API_KEY / FUELCHECK_API_SECRET / FUELCHECK_AUTH_HEADER."
         )
-    run_service()
+
+    # RUN_ONCE=true is used by the scheduled GitHub Actions workflow, which needs
+    # a single cycle per job run rather than an infinite loop.
+    if os.environ.get("RUN_ONCE", "").lower() == "true":
+        run_cycle()
+    else:
+        run_service()
