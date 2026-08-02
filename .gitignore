@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+.env
+.streamlit/secrets.toml
+
+fuel_data.json
+fuel_data.json.lock
+fuelPrice_data.csv
+fuelPrice_history.csv
+fuelPrice_history.csv.lock
