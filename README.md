@@ -9,9 +9,11 @@ Live NSW fuel price monitoring: NSW FuelCheck API → MQTT → Streamlit dashboa
 ## Run locally
 ```bash
 python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-publisher.txt
 cp .env.example .env   # fill in your NSW FuelCheck API credentials
 ```
+
+`requirements.txt` covers `dashboard.py` (what gets deployed). `requirements-publisher.txt` adds what `publisher.py` needs on top (requests, matplotlib, etc.) — only required when running the producer locally.
 
 In one terminal, run the producer:
 ```bash

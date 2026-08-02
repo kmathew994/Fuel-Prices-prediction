@@ -1,0 +1,7 @@
+requests>=2.32
+pandas>=2.2
+paho-mqtt>=2.1
+python-dotenv>=1.0
+matplotlib>=3.10
+seaborn>=0.13
+folium>=0.19
