@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+:root {
+  --bg: #0b0e14; --card: #141a24; --border: #232b3a;
+  --text: #f1f3f6; --muted: #8a93a6; --accent: #ff8a3d;
+  --good: #2dd4bf; --warn: #f5b942; --bad: #f4515c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; width: 1280px; height: 800px;
+  background: radial-gradient(circle at 20% 10%, #1c2438 0%, var(--bg) 60%);
+  font-family: 'Inter', sans-serif; color: var(--text);
+  display: flex; align-items: center; justify-content: center; gap: 90px;
+}
+.pitch { max-width: 460px; }
+.pitch .eyebrow { color: var(--accent); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+.pitch h1 { font-size: 3rem; font-weight: 800; line-height: 1.08; margin: 0 0 18px; letter-spacing: -0.02em; }
+.pitch h1 span { background: linear-gradient(135deg, var(--accent), #ffb27a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.pitch p { color: var(--muted); font-size: 1.15rem; line-height: 1.5; margin: 0 0 22px; }
+.pitch .legend { display: flex; gap: 20px; font-size: 0.95rem; color: var(--muted); }
+.dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; margin-right: 7px; }
+
+.popup-mock {
+  width: 380px;
+  background: radial-gradient(circle at 15% 0%, #141a2a 0%, var(--bg) 55%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+}
+.app-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.app-header .icon { font-size: 1.8rem; }
+.app-header .title { font-weight: 800; font-size: 1.15rem; }
+.app-header .subtitle { font-size: 0.72rem; color: var(--muted); }
+.search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.search-row input { flex: 1; background: #0f141d; border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; color: var(--text); font-size: 0.95rem; font-family: inherit; }
+.search-row button { background: linear-gradient(135deg, var(--accent), #ffb27a); color: #1a1206; border: none; border-radius: 10px; padding: 9px 16px; font-weight: 700; font-size: 0.9rem; }
+.filter-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.filter-row select { flex: 1; background: #0f141d; border: 1px solid var(--border); border-radius: 10px; padding: 7px 8px; color: var(--text); font-family: inherit; font-size: 0.85rem; }
+.legend-row { display: flex; gap: 14px; color: var(--muted); font-size: 0.75rem; margin-bottom: 8px; }
+.results-count { font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; }
+.results { display: flex; flex-direction: column; gap: 8px; }
+.station-card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--muted); border-radius: 12px; padding: 10px 12px; }
+.tier-green { border-left-color: var(--good); }
+.tier-amber { border-left-color: var(--warn); }
+.tier-red { border-left-color: var(--bad); }
+.station-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.station-name { font-weight: 700; font-size: 0.9rem; }
+.station-price { font-weight: 800; font-size: 1.05rem; }
+.tier-green .station-price { color: var(--good); }
+.tier-amber .station-price { color: var(--warn); }
+.tier-red .station-price { color: var(--bad); }
+.station-brand { display: inline-block; background: #232b3a; border-radius: 999px; padding: 1px 8px; font-size: 0.68rem; font-weight: 600; margin: 4px 0; }
+.station-address { color: var(--muted); font-size: 0.78rem; }
+</style>
+</head>
+<body>
+
+  <div class="pitch">
+    <div class="eyebrow">Live NSW FuelCheck Data</div>
+    <h1>Find the <span>cheapest petrol</span> near any NSW postcode</h1>
+    <p>Type a postcode, pick a brand and fuel type, and instantly see nearby stations color-coded from cheapest to priciest.</p>
+    <div class="legend">
+      <span><span class="dot" style="background:#2dd4bf"></span>Cheapest</span>
+      <span><span class="dot" style="background:#f5b942"></span>Mid-range</span>
+      <span><span class="dot" style="background:#f4515c"></span>Priciest</span>
+    </div>
+  </div>
+
+  <div class="popup-mock">
+    <div class="app-header">
+      <span class="icon">⛽</span>
+      <div>
+        <div class="title">NSW Fuel Prices</div>
+        <div class="subtitle">Data updated 4 min ago</div>
+      </div>
+    </div>
+    <div class="search-row">
+      <input value="2170" readonly />
+      <button>Search</button>
+    </div>
+    <div class="filter-row">
+      <select><option>All brands</option></select>
+      <select><option>U91</option></select>
+    </div>
+    <div class="legend-row">
+      <span><span class="dot" style="background:#2dd4bf"></span>Cheapest</span>
+      <span><span class="dot" style="background:#f5b942"></span>Mid-range</span>
+      <span><span class="dot" style="background:#f4515c"></span>Priciest</span>
+    </div>
+    <div class="results-count">31 stations · U91 · within 5km of 2170</div>
+    <div class="results">
+      <div class="station-card tier-green">
+        <div class="station-top"><div class="station-name">U-Go Moorebank Bridges Rd</div><div class="station-price">$186.90</div></div>
+        <div class="station-brand">U-Go</div>
+        <div class="station-address">Moorebank NSW 2170 · 0.8km away</div>
+      </div>
+      <div class="station-card tier-green">
+        <div class="station-top"><div class="station-name">Caltex Prestons</div><div class="station-price">$188.90</div></div>
+        <div class="station-brand">Caltex</div>
+        <div class="station-address">Prestons NSW 2170 · 1.4km away</div>
+      </div>
+      <div class="station-card tier-amber">
+        <div class="station-top"><div class="station-name">Shell Liverpool</div><div class="station-price">$189.90</div></div>
+        <div class="station-brand">Shell</div>
+        <div class="station-address">Liverpool NSW 2170 · 2.1km away</div>
+      </div>
+      <div class="station-card tier-red">
+        <div class="station-top"><div class="station-name">BP Prestons</div><div class="station-price">$199.90</div></div>
+        <div class="station-brand">Bp</div>
+        <div class="station-address">Prestons NSW 2170 · 1.9km away</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
