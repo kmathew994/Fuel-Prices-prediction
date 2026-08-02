@@ -2,6 +2,7 @@ const SNAPSHOT_URL =
   "https://raw.githubusercontent.com/kmathew994/Fuel-Prices-prediction/main/data/latest_prices.json";
 const CACHE_KEY = "fuelSnapshotV1";
 const CACHE_TTL_MS = 15 * 60 * 1000; // matches the publish schedule
+const SEARCH_RADIUS_KM = 5;
 
 const postcodeInput = document.getElementById("postcodeInput");
 const searchForm = document.getElementById("searchForm");
@@ -14,9 +15,36 @@ const legendRow = document.getElementById("legendRow");
 const dataFreshnessEl = document.getElementById("dataFreshness");
 
 let snapshot = null; // { generated_at, count, records }
-let postcodeRecords = []; // records matching the currently searched postcode
+let postcodeRecords = []; // records within SEARCH_RADIUS_KM of the searched postcode's centroid
+let searchedPostcode = "";
 
 legendRow.style.display = "none";
+
+// Haversine great-circle distance in km between two lat/long points
+function distanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function hasCoords(r) {
+  return typeof r.latitude === "number" && typeof r.longitude === "number";
+}
+
+// Approximates a postcode's location as the average position of its known
+// stations (we have no separate postcode->coordinates lookup table).
+function postcodeCentroid(records) {
+  const withCoords = records.filter(hasCoords);
+  if (!withCoords.length) return null;
+  const lat = withCoords.reduce((sum, r) => sum + r.latitude, 0) / withCoords.length;
+  const lon = withCoords.reduce((sum, r) => sum + r.longitude, 0) / withCoords.length;
+  return { lat, lon };
+}
 
 function timeAgo(isoString) {
   const diffMs = Date.now() - new Date(isoString).getTime();
@@ -93,12 +121,12 @@ function renderResults() {
   filtered.sort((a, b) => a.price - b.price);
 
   resultsCountEl.textContent = filtered.length
-    ? `${filtered.length} station${filtered.length === 1 ? "" : "s"} · ${fuel}`
+    ? `${filtered.length} station${filtered.length === 1 ? "" : "s"} · ${fuel} · within ${SEARCH_RADIUS_KM}km of ${searchedPostcode}`
     : "";
 
   if (!filtered.length) {
     legendRow.style.display = "none";
-    renderState(resultsEl, "🤷", `No ${fuel || "matching"} stations found for this postcode / brand.`);
+    renderState(resultsEl, "🤷", `No ${fuel || "matching"} stations found nearby for this brand.`);
     return;
   }
 
@@ -119,7 +147,7 @@ function renderResults() {
             <div class="station-price">$${r.price.toFixed(2)}</div>
           </div>
           <div class="station-brand">${r.brand || "Unknown"}</div>
-          <div class="station-address">${r.address || ""}</div>
+          <div class="station-address">${r.address || ""} · ${r.distanceKm.toFixed(1)}km away</div>
           <div class="station-updated">Updated ${r.lastupdated || "—"}</div>
         </div>
       `;
@@ -140,12 +168,27 @@ function handleSearch(event) {
     return;
   }
 
-  postcodeRecords = snapshot.records.filter((r) => r.postcode === postcode);
+  const exactMatches = snapshot.records.filter((r) => r.postcode === postcode);
+  const centroid = postcodeCentroid(exactMatches);
+
+  if (!centroid) {
+    filterRow.classList.add("hidden");
+    legendRow.style.display = "none";
+    renderState(resultsEl, "🤷", "That postcode isn't in the NSW FuelCheck data.");
+    resultsCountEl.textContent = "";
+    return;
+  }
+
+  searchedPostcode = postcode;
+  postcodeRecords = snapshot.records
+    .filter(hasCoords)
+    .map((r) => ({ ...r, distanceKm: distanceKm(centroid.lat, centroid.lon, r.latitude, r.longitude) }))
+    .filter((r) => r.distanceKm <= SEARCH_RADIUS_KM);
 
   if (!postcodeRecords.length) {
     filterRow.classList.add("hidden");
     legendRow.style.display = "none";
-    renderState(resultsEl, "🤷", "No stations found for that postcode.");
+    renderState(resultsEl, "🤷", `No stations found within ${SEARCH_RADIUS_KM}km of ${postcode}.`);
     resultsCountEl.textContent = "";
     return;
   }
