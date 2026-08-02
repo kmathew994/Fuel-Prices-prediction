@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>NSW Fuel Prices</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="app-header">
+    <span class="icon">⛽</span>
+    <div>
+      <div class="title">NSW Fuel Prices</div>
+      <div class="subtitle" id="dataFreshness">Loading data…</div>
+    </div>
+  </header>
+
+  <form id="searchForm" class="search-row">
+    <input
+      id="postcodeInput"
+      type="text"
+      inputmode="numeric"
+      maxlength="4"
+      placeholder="Postcode, e.g. 2000"
+      autocomplete="off"
+    />
+    <button type="submit">Search</button>
+  </form>
+
+  <div id="filterRow" class="filter-row hidden">
+    <select id="brandSelect">
+      <option value="">All brands</option>
+    </select>
+    <select id="fuelSelect"></select>
+  </div>
+
+  <div class="legend-row" id="legendRow">
+    <span><span class="dot dot-green"></span>Cheapest</span>
+    <span><span class="dot dot-amber"></span>Mid-range</span>
+    <span><span class="dot dot-red"></span>Priciest</span>
+  </div>
+
+  <div id="resultsCount" class="results-count"></div>
+  <div id="results" class="results"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

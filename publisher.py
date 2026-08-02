@@ -1,7 +1,8 @@
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 import json
+import re
 import time
 import os
 import paho.mqtt.client as mqtt
@@ -29,6 +30,11 @@ MQTT_topic  = os.environ.get("MQTT_TOPIC", "kmathew994/fuelcheck/nsw/prices")
 
 # Append-only log of every cleaned snapshot, used later for price prediction
 HISTORY_FILE = "fuelPrice_history.csv"
+
+# Public snapshot the browser extension reads directly from GitHub (via
+# raw.githubusercontent.com) - no server, no exposed API key.
+SNAPSHOT_FILE = os.path.join("data", "latest_prices.json")
+POSTCODE_PATTERN = re.compile(r"NSW\s+(\d{4})\s*$")
 
 # Optional cap on records published/logged per cycle. Unset by default (full
 # ~10k-record NSW catalog) for continuous local runs; the scheduled GitHub
@@ -192,6 +198,39 @@ def append_history(df):
     snapshot.to_csv(HISTORY_FILE, mode="a", header=write_header, index=False)
 
 
+# Writes the full cleaned snapshot as a public JSON file the browser extension
+# fetches directly from GitHub. Runs on the full dataset (not the MQTT-sampled
+# subset) since this is a plain file write, not throttled like MQTT publish.
+def save_latest_snapshot(df):
+    os.makedirs(os.path.dirname(SNAPSHOT_FILE), exist_ok=True)
+
+    records = []
+    for _, row in df.iterrows():
+        address = row.get("address", "") or ""
+        match = POSTCODE_PATTERN.search(address)
+        records.append({
+            "stationid": row.get("stationid"),
+            "name": row.get("name"),
+            "brand": row.get("brand"),
+            "address": address,
+            "postcode": match.group(1) if match else None,
+            "latitude": row.get("latitude"),
+            "longitude": row.get("longitude"),
+            "fueltype": row.get("fueltype"),
+            "price": row.get("price"),
+            "lastupdated": row.get("lastupdated"),
+        })
+
+    snapshot = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": len(records),
+        "records": records,
+    }
+    with open(SNAPSHOT_FILE, "w") as f:
+        json.dump(snapshot, f)
+    print(f"Wrote {len(records)} records to {SNAPSHOT_FILE}")
+
+
 # Publishes each row of the cleaned DataFrame to MQTT topic
 def publish_to_mqtt(df):
     
@@ -231,6 +270,9 @@ def run_cycle():
     print("Retrieved data with " + str(df.shape) + " rows and columns.")
 
     df = clean_dataset(df)
+
+    # Snapshot the full cleaned dataset for the browser extension before any sampling
+    save_latest_snapshot(df)
 
     if MAX_PUBLISH_RECORDS:
         limit = int(MAX_PUBLISH_RECORDS)
