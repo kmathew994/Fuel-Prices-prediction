@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import folium
 from dotenv import load_dotenv
-# for terminal plots
-matplotlib.use('TkAgg')
 
 load_dotenv()
 
