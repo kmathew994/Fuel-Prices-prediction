@@ -199,7 +199,7 @@ def predictPrice(station_id, fueltype, hours_ahead=prediction_horizon_hours):
     if len(sub) < 2:
         return None
 
-    sub["fetched_at"] = pd.to_datetime(sub["fetched_at"])
+    sub["fetched_at"] = pd.to_datetime(sub["fetched_at"], format="mixed", utc=True)
     sub = sub.sort_values("fetched_at")
     sub["hours"] = (sub["fetched_at"] - sub["fetched_at"].iloc[0]).dt.total_seconds() / 3600
 

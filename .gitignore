@@ -9,5 +9,4 @@ __pycache__/
 fuel_data.json
 fuel_data.json.lock
 fuelPrice_data.csv
-fuelPrice_history.csv
 fuelPrice_history.csv.lock

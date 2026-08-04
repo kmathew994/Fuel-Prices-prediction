@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pandas as pd
 import json
 import re
@@ -36,11 +36,22 @@ HISTORY_FILE = "fuelPrice_history.csv"
 SNAPSHOT_FILE = os.path.join("data", "latest_prices.json")
 POSTCODE_PATTERN = re.compile(r"NSW\s+(\d{4})\s*$")
 
-# Optional cap on records published/logged per cycle. Unset by default (full
-# ~10k-record NSW catalog) for continuous local runs; the scheduled GitHub
-# Actions job sets this so a run finishes in well under its interval, since
-# publishing is deliberately throttled to 0.1s/record.
+# Optional cap on records published per cycle. Unset by default (full ~10k
+# NSW catalog) for continuous local runs; the scheduled GitHub Actions job
+# sets this so a run finishes well under its interval, since publishing is
+# deliberately throttled to 0.1s/record. This sample is random each cycle -
+# it's just what the live map/MQTT feed shows, not what history logs.
 MAX_PUBLISH_RECORDS = os.environ.get("MAX_PUBLISH_RECORDS")
+
+# Optional cap on how many stations get logged to history per cycle. Unlike
+# MAX_PUBLISH_RECORDS, this selects the SAME stations every cycle (sorted by
+# stationid) so each one actually accumulates a real time series instead of
+# random, disconnected data points.
+HISTORY_MAX_STATIONS = os.environ.get("HISTORY_MAX_STATIONS")
+
+# How long to keep rows in the history file before pruning them, so the
+# git-committed CSV doesn't grow unbounded run over run.
+HISTORY_RETENTION_DAYS = int(os.environ.get("HISTORY_RETENTION_DAYS", "45"))
 # Placeholder for access token once obtained 
 ACCESS_TOKEN = ""
 
@@ -191,11 +202,31 @@ def clean_dataset(df):
 
 # Appends the cleaned snapshot to a running history log, tagged with fetch time.
 # This is the data source the dashboard's price prediction feature reads from.
+# Committed back to the repo by the GitHub Actions workflow so it actually
+# accumulates across scheduled runs instead of resetting every cycle.
 def append_history(df):
     snapshot = df.copy()
-    snapshot["fetched_at"] = datetime.now().isoformat()
+    snapshot["fetched_at"] = datetime.now(timezone.utc).isoformat()
     write_header = not os.path.exists(HISTORY_FILE)
     snapshot.to_csv(HISTORY_FILE, mode="a", header=write_header, index=False)
+
+
+# Drops history rows older than HISTORY_RETENTION_DAYS so the git-committed
+# CSV stays bounded instead of growing forever.
+def prune_history():
+    if not os.path.exists(HISTORY_FILE):
+        return
+    history_df = pd.read_csv(HISTORY_FILE)
+    if "fetched_at" not in history_df.columns or history_df.empty:
+        return
+
+    fetched_at = pd.to_datetime(history_df["fetched_at"], errors="coerce", utc=True, format="mixed")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=HISTORY_RETENTION_DAYS)
+    kept = history_df[fetched_at >= cutoff]
+
+    if len(kept) < len(history_df):
+        kept.to_csv(HISTORY_FILE, index=False)
+        print(f"Pruned history: {len(history_df) - len(kept)} rows older than {HISTORY_RETENTION_DAYS} days removed")
 
 
 # Writes the full cleaned snapshot as a public JSON file the browser extension
@@ -274,14 +305,24 @@ def run_cycle():
     # Snapshot the full cleaned dataset for the browser extension before any sampling
     save_latest_snapshot(df)
 
+    # Log a deterministic subset (same stations every cycle) so each one
+    # builds a real time series, then prune anything past the retention window
+    history_subset = df
+    if HISTORY_MAX_STATIONS:
+        limit = int(HISTORY_MAX_STATIONS)
+        if len(history_subset) > limit:
+            history_subset = history_subset.sort_values("stationid").iloc[:limit]
+    append_history(history_subset)
+    prune_history()
+
+    # The live map/MQTT feed can show a different random sample each cycle -
+    # that's just what's currently visible, unrelated to the history log above
+    mqtt_df = df
     if MAX_PUBLISH_RECORDS:
         limit = int(MAX_PUBLISH_RECORDS)
-        if len(df) > limit:
-            df = df.sample(n=limit)
-
-    # Log this snapshot for the price prediction feature, then publish to MQTT broker
-    append_history(df)
-    publish_to_mqtt(df)
+        if len(mqtt_df) > limit:
+            mqtt_df = mqtt_df.sample(n=limit)
+    publish_to_mqtt(mqtt_df)
     return True
 
 

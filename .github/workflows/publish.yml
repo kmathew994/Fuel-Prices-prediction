@@ -25,15 +25,17 @@ jobs:
         env:
           RUN_ONCE: "true"
           MAX_PUBLISH_RECORDS: "500"
+          HISTORY_MAX_STATIONS: "500"
+          HISTORY_RETENTION_DAYS: "45"
           FUELCHECK_API_KEY: ${{ secrets.FUELCHECK_API_KEY }}
           FUELCHECK_API_SECRET: ${{ secrets.FUELCHECK_API_SECRET }}
           FUELCHECK_AUTH_HEADER: ${{ secrets.FUELCHECK_AUTH_HEADER }}
         run: python publisher.py
 
-      - name: Commit updated price snapshot
+      - name: Commit updated price snapshot and history
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/latest_prices.json
+          git add data/latest_prices.json fuelPrice_history.csv
           git diff --staged --quiet || git commit -m "Update latest fuel price snapshot [skip ci]"
           git push
