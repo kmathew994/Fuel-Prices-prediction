@@ -1,5 +1,9 @@
 # Fuel Prices Dashboard
 
+[![Live App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://fuel-prices-prediction.streamlit.app)
+
+**🟢 Live now: [fuel-prices-prediction.streamlit.app](https://fuel-prices-prediction.streamlit.app)** — continuously updated every 15 minutes via a scheduled GitHub Action.
+
 Live NSW fuel price monitoring: NSW FuelCheck API → MQTT → Streamlit dashboard, with a simple linear-trend price prediction feature.
 
 ## Architecture
